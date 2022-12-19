@@ -1,4 +1,4 @@
-import pyrogram, config, db, random, uuid, os
+import pyrogram, config, db, random, uuid, os, asyncio
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps
 
@@ -113,9 +113,10 @@ async def flip(bot, update):
         data = await db.get_user(update.from_user.id)
         if int(data['coin']) < int(angka):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan flip sebesar {angka}.')
-        await bot.send_photo(
+        await db.decrease_coin(update.from_user.id, angka)
+        message = await bot.send_photo(
             chat_id=update.chat.id,
-            photo='AgACAgUAAx0CbjBQxAACAehjn3VAJezJ6xcjO7XlAZIUn2kfMQACwq8xGz5UAVUFXRyP8GfWHAAIAQADAgADeQAHHgQ',
+            photo='AgACAgUAAxkBAANlY594vkUoF7_amPyeJ803r7zgQdQAAsKvMRs-VAFVvKqmGx01FpMACAEAAwIAA3kABx4E',
             caption=f'Pilih antara angka atau gambar {mention_name}.',
             reply_markup=pyrogram.types.InlineKeyboardMarkup([
                 [
@@ -124,6 +125,13 @@ async def flip(bot, update):
                 ]
             ])
         )
+        await asyncio.sleep(60)
+        msg = await bot.get_messages(update.chat.id, message.message_id)
+        if msg.empty:
+            pass
+        else:
+            await db.increase_coin(update.from_user.id, angka)
+            await message.delete()
 
 
 @xbot.on_callback_query()
@@ -138,28 +146,23 @@ async def buttons(bot, update):
     random_side = random.choice(listed)
     x = int(angka)/2
     y = int(x)/2
-    z = int(x)*3-(x*2)
+    z = int(x)*3
     final = int(z+y)
     await update.message.reply_sticker(random_side)
     angka = str(angka)
     final = str(final)
     data = await db.get_user(update.from_user.id)
-    if int(data['coin']) < int(angka):
-        await update.message.delete()
-        return await update.answer(f'GCoin milik {update.from_user.mention} saat ini tidak mencukupi untuk melakukan flip sebesar {angka}, flip telah dibatalkan.', show_alert=True)
     if side == 'd':
         if random_side == depan:
             await update.answer(f"GCoin anda telah bertambah sebanyak {final}", show_alert=True)
             await db.increase_coin(id, final)
         else:
             await update.answer(f"GCoin anda telah berkurang sebanyak {angka}", show_alert=True)
-            await db.decrease_coin(id, angka)
     elif side == 'b':
         if random_side == belakang:
             await update.answer(f"GCoin anda telah bertambah sebanyak {final}", show_alert=True)
             await db.increase_coin(id, str(final))
         else:
-            await db.decrease_coin(id, str(angka))
             await update.answer(f"GCoin anda telah berkurang sebanyak {angka}", show_alert=True)
     else:
         pass
@@ -177,6 +180,7 @@ async def drop(bot, update):
         if int(data['coin']) < int(angka):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan drop sebesar {angka}.')
         check_user_drop = await db.check_user_drop(update.from_user.id)
+        await db.decrease_coin(update.from_user.id, angka)
         if not check_user_drop:
             text = str(uuid.uuid4()).split('-')[0]
             captcha = generate_captcha_image(text)
@@ -188,7 +192,16 @@ async def drop(bot, update):
             angka = check_user_drop['ammount']
             await bot.send_photo(update.chat.id, f'{captcha}.jpg', caption=f'**Terdapat drop yang belum di claim.**\n\nTelah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
             os.remove(f'{captcha}.jpg')
-
+        await asyncio.sleep(60)
+        check_user_drop_cc = await db.check_user_drop(update.from_user.id)
+        if check_user_drop_cc:
+            if check_user_drop_cc['captcha'] != captcha:
+                pass
+            else:
+                await db.increase_coin(update.from_user.id, angka)
+                await db.del_drop(captcha)
+        else:
+            pass
 
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('claim', '.'))
@@ -203,13 +216,10 @@ async def claim(bot, update):
         if int(update.from_user.id) != int(id):
             await db.del_drop(captcha)
             data = await db.get_user(id)
-            if int(data['coin']) < int(angka):
-                return await bot.send_message(update.chat.id, f'GCoin milik {name} saat ini tidak mencukupi untuk melakukan drop sebesar {angka}, drop telah dibatalkan.')
             if not await db.is_user_exist(update.from_user.id):
                 await db.add_user(update.from_user.id, to_name, angka)
             else:
                 await db.increase_coin(update.from_user.id, angka)
-            await db.decrease_coin(id, angka)
             await bot.send_message(update.chat.id, f'Selamat kepada user {mention_name} karena telah mendapatkan drop GCoin sebesar {angka} dari {name}.')
       
 
