@@ -12,15 +12,19 @@ def int_checker(integer_):
     else:
         return 0
 
-async def add_drop(id, name, ammount):
-    await drop.insert_one({'x': 'x', 'id': str(id), 'name': name, 'ammount': ammount})
+async def add_drop(id, name, ammount, captcha):
+    await drop.insert_one({'x': 'x', 'id': str(id), 'name': name, 'ammount': ammount, 'captcha': captcha})
 
-async def del_drop():
-    await drop.delete_many({'x': 'x'})
-
-async def is_drop_exist():
-    x = await drop.find_one({'x': 'x'})
+async def check_captcha(captcha):
+    x = await drop.find_one({'captcha': captcha})
     return x if x else False
+
+async def check_user_drop(id):
+    x = await drop.find_one({'id': str(id)})
+    return x if x else False
+
+async def del_drop(captcha):
+    await drop.delete_many({'captcha': captcha})
 
 async def add_user(id, name='', coin='0'):
     await up.insert_one({'id': str(id), 'name': name, 'coin': coin})
