@@ -93,7 +93,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.addcoin @tag nominal` - menambahkan GCoin kepada orang lain (khusus owner dan admin).\n`.delcoin @tag nominal` - mengurangi GCoin milik orang lain (khusus owner dan admin).\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.'
     await bot.send_message(update.chat.id, list_commands)
 
 
@@ -115,7 +115,7 @@ async def flip(bot, update):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan flip sebesar {angka}.')
         await bot.send_photo(
             chat_id=update.chat.id,
-            photo='AgACAgUAAxkBAANlY594vkUoF7_amPyeJ803r7zgQdQAAsKvMRs-VAFVvKqmGx01FpMACAEAAwIAA3kABx4E',
+            photo='AgACAgUAAx0CbjBQxAACAehjn3VAJezJ6xcjO7XlAZIUn2kfMQACwq8xGz5UAVUFXRyP8GfWHAAIAQADAgADeQAHHgQ',
             caption=f'Pilih antara angka atau gambar {mention_name}.',
             reply_markup=pyrogram.types.InlineKeyboardMarkup([
                 [
@@ -143,6 +143,10 @@ async def buttons(bot, update):
     await update.message.reply_sticker(random_side)
     angka = str(angka)
     final = str(final)
+    data = await db.get_user(update.from_user.id)
+    if int(data['coin']) < int(angka):
+        await update.message.delete()
+        return await update.answer(f'GCoin milik {update.from_user.mention} saat ini tidak mencukupi untuk melakukan flip sebesar {angka}, flip telah dibatalkan.', show_alert=True)
     if side == 'd':
         if random_side == depan:
             await update.answer(f"GCoin anda telah bertambah sebanyak {final}", show_alert=True)
