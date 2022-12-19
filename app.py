@@ -1,4 +1,6 @@
-import pyrogram, config, db, random
+import pyrogram, config, db, random, uuid, os
+from PIL import Image
+from PIL import ImageFont, ImageDraw, ImageOps
 
 # Menjalankan bot
 xbot = pyrogram.Client('GCoin-Bot', api_id=config.Config.APP_ID, api_hash=config.Config.API_HASH, bot_token=config.Config.BOT_TOKEN)
@@ -33,6 +35,19 @@ async def get_user_id_from_tag(update):
         return to_return
     else:
         return None, None, None
+
+
+def generate_captcha_image(text):
+    width, height = 600, 300
+    font_size = 100
+    img = Image.new("L", (width, height), color=22)
+    font = ImageFont.truetype("bahnschrift.ttf", font_size)
+    draw = ImageDraw.Draw(img)
+    w, h = draw.textsize(text, font=font)
+    h += int(h*0.21)
+    draw.text(((width-w)/2, (height-h)/2), text=text, fill='white', font=font)
+    img.save(f'{text}.jpg')
+    return text
 
 
 async def checking_user_name(update):
@@ -78,7 +93,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.addcoin @tag nominal` - menambahkan GCoin kepada orang lain (khusus owner dan admin).\n`.delcoin @tag nominal` - mengurangi GCoin milik orang lain (khusus owner dan admin).\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.addadmin @tag` - memasukkan user ke dalam list admin (khusus owner).\n`.deladmin @tag` - mengeluarkan user dari dari list admin (khusus owner).\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim` - meng-claim GCoin yang di drop.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.addcoin @tag nominal` - menambahkan GCoin kepada orang lain (khusus owner dan admin).\n`.delcoin @tag nominal` - mengurangi GCoin milik orang lain (khusus owner dan admin).\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.addadmin @tag` - memasukkan user ke dalam list admin (khusus owner).\n`.deladmin @tag` - mengeluarkan user dari dari list admin (khusus owner).\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim <captcha>` - meng-claim GCoin yang di drop.'
     await bot.send_message(update.chat.id, list_commands)
 
 
@@ -157,31 +172,40 @@ async def drop(bot, update):
         data = await db.get_user(update.from_user.id)
         if int(data['coin']) < int(angka):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan drop sebesar {angka}.')
-        is_drop_exist = await db.is_drop_exist()
-        if is_drop_exist:
-            angka = is_drop_exist['ammount']
-            id = is_drop_exist['id']
-            name = is_drop_exist['name']
-            return await bot.send_message(update.chat.id, f'Masih terdapat Drop GCoin sebesar {angka} oleh {name}. Silahkan claim terlebih dahulu.')
-        await db.add_drop(update.from_user.id, name, angka)
-        await bot.send_message(update.chat.id, f'Telah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
+        check_user_drop = await db.check_user_drop(update.from_user.id)
+        if not check_user_drop:
+            text = str(uuid.uuid4()).split('-')[0]
+            captcha = generate_captcha_image(text)
+            await db.add_drop(update.from_user.id, name, angka, captcha)
+            await bot.send_photo(update.chat.id, f'{captcha}.jpg', caption=f'Telah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
+            os.remove(f'{captcha}.jpg')
+        else:
+            captcha = generate_captcha_image(check_user_drop['captcha'])
+            angka = check_user_drop['ammount']
+            await bot.send_photo(update.chat.id, f'{captcha}.jpg', caption=f'**Terdapat drop yang belum di claim.**\n\nTelah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
+            os.remove(f'{captcha}.jpg')
+
 
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('claim', '.'))
 async def claim(bot, update):
     to_name, mention_name = await checking_user_name(update)
-    is_drop_exist = await db.is_drop_exist()
+    captcha = update.text.split(' ')[1]
+    is_drop_exist = await db.check_captcha(captcha)
     if is_drop_exist:
         angka = is_drop_exist['ammount']
         id = is_drop_exist['id']
         name = is_drop_exist['name']
         if int(update.from_user.id) != int(id):
+            await db.del_drop(captcha)
+            data = await db.get_user(id)
+            if int(data['coin']) < int(angka):
+                return await bot.send_message(update.chat.id, f'GCoin milik {name} saat ini tidak mencukupi untuk melakukan drop sebesar {angka}, drop telah dibatalkan.')
             if not await db.is_user_exist(update.from_user.id):
                 await db.add_user(update.from_user.id, to_name, angka)
             else:
                 await db.increase_coin(update.from_user.id, angka)
             await db.decrease_coin(id, angka)
-            await db.del_drop()
             await bot.send_message(update.chat.id, f'Selamat kepada user {mention_name} karena telah mendapatkan drop GCoin sebesar {angka} dari {name}.')
       
 
