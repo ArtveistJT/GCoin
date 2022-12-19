@@ -2,6 +2,7 @@ import motor.motor_asyncio, config, collections
 
 up = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['users']
 up_admin = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['admins']
+drop = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['drop']
 
 def int_checker(integer_):
     if integer_ > 0:
@@ -10,6 +11,16 @@ def int_checker(integer_):
         return 0
     else:
         return 0
+
+async def add_drop(id, name, ammount):
+    await drop.insert_one({'x': 'x', 'id': str(id), 'name': name, 'ammount': ammount})
+
+async def del_drop():
+    await drop.delete_many({'x': 'x'})
+
+async def is_drop_exist():
+    x = await drop.find_one({'x': 'x'})
+    return x if x else False
 
 async def add_user(id, name='', coin='0'):
     await up.insert_one({'id': str(id), 'name': name, 'coin': coin})
