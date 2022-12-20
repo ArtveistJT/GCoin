@@ -1,4 +1,4 @@
-import pyrogram, config, db, random, uuid, os, asyncio
+import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps
 
@@ -70,7 +70,7 @@ async def check_if_cmd_valid(update):
     cmd, tag, nominal = update.text.split(' ')
     if tag.isdigit():
         return False
-    if cmd in ['.addcoin', '.delcoin']:
+    if cmd in ['.depo', '.wd']:
         if not nominal.isdigit():
             return False
     if cmd == '.transfer':
@@ -93,7 +93,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.'
     await bot.send_message(update.chat.id, list_commands)
 
 
@@ -113,10 +113,12 @@ async def flip(bot, update):
         data = await db.get_user(update.from_user.id)
         if int(data['coin']) < int(angka):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan flip sebesar {angka}.')
+        elif int(angka) == 0:
+            return await bot.send_message(update.chat.id, f'Flip GCoin 0 tidak di izinkan.')
         await db.decrease_coin(update.from_user.id, angka)
         message = await bot.send_photo(
             chat_id=update.chat.id,
-            photo='AgACAgUAAxkBAANlY594vkUoF7_amPyeJ803r7zgQdQAAsKvMRs-VAFVvKqmGx01FpMACAEAAwIAA3kABx4E',
+            photo='AgACAgUAAx0CbjBQxAACAehjn3VAJezJ6xcjO7XlAZIUn2kfMQACwq8xGz5UAVUFXRyP8GfWHAAIAQADAgADeQAHHgQ',
             caption=f'Pilih antara angka atau gambar {mention_name}.',
             reply_markup=pyrogram.types.InlineKeyboardMarkup([
                 [
@@ -179,6 +181,8 @@ async def drop(bot, update):
         data = await db.get_user(update.from_user.id)
         if int(data['coin']) < int(angka):
             return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan drop sebesar {angka}.')
+        elif int(angka) == 0:
+            return await bot.send_message(update.chat.id, f'Drop GCoin 0 tidak di izinkan.')
         check_user_drop = await db.check_user_drop(update.from_user.id)
         await db.decrease_coin(update.from_user.id, angka)
         if not check_user_drop:
@@ -187,40 +191,45 @@ async def drop(bot, update):
             await db.add_drop(update.from_user.id, name, angka, captcha)
             await bot.send_photo(update.chat.id, f'{captcha}.jpg', caption=f'Telah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
             os.remove(f'{captcha}.jpg')
-        else:
-            captcha = generate_captcha_image(check_user_drop['captcha'])
-            angka = check_user_drop['ammount']
-            await bot.send_photo(update.chat.id, f'{captcha}.jpg', caption=f'**Terdapat drop yang belum di claim.**\n\nTelah di-Drop GCoin sebesar {angka} oleh {mention_name}. Silahkan claim secepatnya.')
-            os.remove(f'{captcha}.jpg')
-        await asyncio.sleep(60)
-        check_user_drop_cc = await db.check_user_drop(update.from_user.id)
-        if check_user_drop_cc:
-            if check_user_drop_cc['captcha'] != captcha:
-                pass
+        else: return await db.del_drop(check_user_drop['captcha'])
+        is_claimed = False
+        for _ in range(30):
+            if is_claimed:
+                break
+            x = await update.chat.listen(filters='text')
+            if x.text == f'.claim {captcha}':
+                if int(x.from_user.id) != int(update.from_user.id):
+                    await db.del_drop(captcha)
+                    is_claimed = True
+        if is_claimed:
+            to_name, mention_name = await checking_user_name(x)
+            if not await db.is_user_exist(x.from_user.id):
+                await db.add_user(x.from_user.id, to_name, angka)
             else:
-                await db.increase_coin(update.from_user.id, angka)
-                await db.del_drop(captcha)
-        else:
-            pass
-
-
-@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('claim', '.'))
-async def claim(bot, update):
-    to_name, mention_name = await checking_user_name(update)
-    captcha = update.text.split(' ')[1]
-    is_drop_exist = await db.check_captcha(captcha)
-    if is_drop_exist:
-        angka = is_drop_exist['ammount']
-        id = is_drop_exist['id']
-        name = is_drop_exist['name']
-        if int(update.from_user.id) != int(id):
-            await db.del_drop(captcha)
-            data = await db.get_user(id)
-            if not await db.is_user_exist(update.from_user.id):
-                await db.add_user(update.from_user.id, to_name, angka)
-            else:
-                await db.increase_coin(update.from_user.id, angka)
+                await db.increase_coin(x.from_user.id, angka)
             await bot.send_message(update.chat.id, f'Selamat kepada user {mention_name} karena telah mendapatkan drop GCoin sebesar {angka} dari {name}.')
+        else:
+            await db.increase_coin(update.from_user.id, angka)
+            await db.del_drop(captcha)
+
+
+#@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('claim', '.'))
+#async def claim(bot, update):
+#    to_name, mention_name = await checking_user_name(update)
+#    captcha = update.text.split(' ')[1]
+#    is_drop_exist = await db.check_captcha(captcha)
+#    if is_drop_exist:
+#        angka = is_drop_exist['ammount']
+#        id = is_drop_exist['id']
+#       name = is_drop_exist['name']
+#        if int(update.from_user.id) != int(id):
+#            await db.del_drop(captcha)
+#            data = await db.get_user(id)
+#            if not await db.is_user_exist(update.from_user.id):
+#                await db.add_user(update.from_user.id, to_name, angka)
+#            else:
+#                await db.increase_coin(update.from_user.id, angka)
+#            await bot.send_message(update.chat.id, f'Selamat kepada user {mention_name} karena telah mendapatkan drop GCoin sebesar {angka} dari {name}.')
       
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('top', '.'))
@@ -241,11 +250,11 @@ async def wallet(bot, update):
         await bot.send_message(update.chat.id, f'Total GCoin {mention_name} saat ini adalah: 0')
 
 
-@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('addcoin', '.'))
+@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('depo', '.'))
 async def addcoin(bot, update):
     await checking_user_name(update)
     if not await check_if_cmd_valid(update):
-        return await bot.send_message(update.chat.id, 'Contoh: .addcoin @tag 10')
+        return await bot.send_message(update.chat.id, 'Contoh: .depo @tag 10')
     admins = await db.get_admins()
     if admins:
         if not update.from_user.id in admins:
@@ -258,25 +267,25 @@ async def addcoin(bot, update):
     try:
         cmd, tag, ammount = update.text.split(' ')
     except:
-        return await bot.send_message(update.chat.id, 'Contoh: .addcoin @tag 10')
+        return await bot.send_message(update.chat.id, 'Contoh: .depo @tag 10')
     if not id:
         if name:
             return await bot.send_message(update.chat.id, name)
         else:
-            return await bot.send_message(update.chat.id, 'Contoh: `.addcoin @tag 10`')
+            return await bot.send_message(update.chat.id, 'Contoh: `.depo @tag 10`')
     if await db.is_user_exist(id):
         coins = await db.increase_coin(id, ammount)
     else:
         await db.add_user(id, name, '0')
         coins = await db.increase_coin(id, ammount)
-    await bot.send_message(update.chat.id, f'GCoin milik {mention_name} telah ditambahkan ({coins})')
+    await bot.send_message(update.chat.id, f'{mention_name} baru saja deposit sebesar {ammount} GCoin\n\nGCoin saat ini: {coins} GCoin.')
 
 
-@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('delcoin', '.'))
+@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('wd', '.'))
 async def delcoin(bot, update):
     await checking_user_name(update)
     if not await check_if_cmd_valid(update):
-        return await bot.send_message(update.chat.id, 'Contoh: `.delcoin @tag 10`')
+        return await bot.send_message(update.chat.id, 'Contoh: `.wd @tag 10`')
     admins = await db.get_admins()
     if admins:
         if not update.from_user.id in admins:
@@ -289,12 +298,12 @@ async def delcoin(bot, update):
     try:
         cmd, tag, ammount = update.text.split(' ')
     except:
-        return await bot.send_message(update.chat.id, 'Contoh: `.delcoin @tag 10`')
+        return await bot.send_message(update.chat.id, 'Contoh: `.wd @tag 10`')
     if not id:
         if name:
             return await bot.send_message(update.chat.id, name)
         else:
-            return await bot.send_message(update.chat.id, 'Contoh: `.delcoin @tag 10`')   
+            return await bot.send_message(update.chat.id, 'Contoh: `.wd @tag 10`')   
     if not await db.is_user_exist(id):
         return await bot.send_message(update.chat.id, f'Saat ini user {mention_name} tidak memiliki GCoin, pastikan anda telah menambahkan GCoin kepada user {name}.')
     else:
@@ -302,7 +311,7 @@ async def delcoin(bot, update):
             return await bot.send_message(update.chat.id, f'Saat ini user {mention_name} tidak memiliki GCoin, pastikan anda telah menambahkan GCoin kepada user {name}.')
         else:
             coins = await db.decrease_coin(id, ammount)
-    await bot.send_message(update.chat.id, f'GCoin milik {mention_name} telah dikurangi ({coins})')
+    await bot.send_message(update.chat.id, f'{mention_name} baru saja withdraw sebesar {ammount} GCoin\n\nGCoin saat ini: {coins} GCoin.')
 
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('transfer', '.'))
@@ -326,7 +335,11 @@ async def transfer(bot, update):
     if await db.is_user_exist(from_):
         from_data = await db.get_user(from_)
         if from_data['coin'] == '0':
-            await bot.send_message(update.chat.id, 'Anda tidak dapat melakukan transfer GCoin, pastikan anda memiliki setidaknya 1 GCoin.\ngunakan .wallet untuk mengecek total GCoin anda.')
+            return await bot.send_message(update.chat.id, 'Anda tidak dapat melakukan transfer GCoin, pastikan anda memiliki setidaknya 1 GCoin.\ngunakan .wallet untuk mengecek total GCoin anda.')
+        elif int(from_data['coin']) < int(ammount):
+            return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan transfer sebesar {ammount}.')
+        elif int(ammount) == 0:
+            return await bot.send_message(update.chat.id, f'Transfer GCoin 0 tidak di izinkan.')
         else:
             if not await db.is_user_exist(to_):
                 await db.add_user(to_, to_name, '0')
@@ -375,4 +388,6 @@ async def deladmin(bot, update):
         return await bot.send_message(update.chat.id, f'{mention_name} tidak dapat ditemukan di dalam list admin.')
 
 
-xbot.run()
+xbot.start()
+pyrogram.idle()
+xbot.stop()
