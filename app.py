@@ -118,7 +118,7 @@ async def flip(bot, update):
         await db.decrease_coin(update.from_user.id, angka)
         message = await bot.send_photo(
             chat_id=update.chat.id,
-            photo='AgACAgUAAx0CbjBQxAACAehjn3VAJezJ6xcjO7XlAZIUn2kfMQACwq8xGz5UAVUFXRyP8GfWHAAIAQADAgADeQAHHgQ',
+            photo='AgACAgUAAxkBAANlY594vkUoF7_amPyeJ803r7zgQdQAAsKvMRs-VAFVvKqmGx01FpMACAEAAwIAA3kABx4E',
             caption=f'Pilih antara angka atau gambar {mention_name}.',
             reply_markup=pyrogram.types.InlineKeyboardMarkup([
                 [
