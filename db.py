@@ -75,7 +75,9 @@ async def decrease_coin(id, ammount):
 async def get_top_10():
     documents = up.find({})
     docs = {}
+    total_coins = 0
     async for doc in documents:
+        total_coins+=int(doc['coin'])
         docs[doc['id']] = int(doc['coin'])
     c = collections.Counter(docs)
     if c:
@@ -89,6 +91,6 @@ async def get_top_10():
             count = str(x)
             text+=f"{count}. **{name}** — {coins} GCoin\n"
             x+=1
-        return text
+        return text+f'\nTotal GCoin: {total_coins}'
     else:
         return 'Tidak ditemukan satu user pun dalam top 10.'
