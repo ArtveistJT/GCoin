@@ -93,7 +93,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.\n`.bet @tag nominal` - mempertaruhkan GCoin yang sama dan yang menang akan mendapatkan 90 persen dari kedua GCoin yang ditambahkan (user vs user).\n`.spin code` - menerima tawaran bet.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.\n`.bet @tag nominal` - mempertaruhkan GCoin yang sama dan yang menang akan mendapatkan 90 persen dari kedua GCoin yang ditambahkan (user vs user).\n`.acc code` - menerima tawaran bet.'
     await bot.send_message(update.chat.id, list_commands)
 
 
@@ -208,8 +208,8 @@ async def bet(bot, update):
         if int(ammount) == 0:
             return await bot.send_message(update.chat.id, f'Bet GCoin 0 tidak di izinkan.')
         captcha = str(uuid.uuid4()).split('-')[0]
-        x = await bot.send_message(update.chat.id, f'Hey {to_mention_name}!\nKirimkan `.spin {captcha}` di private chat saya jika anda setuju untuk melakukan bet GCoin dengan {from_mention_name}.\nBet akan dibatalkan dalam 1 menit jika tidak dijawab.')
-        await bot.listen(to_, filters=pyrogram.filters.regex(f'.spin {captcha}'), timeout=60)
+        x = await bot.send_message(update.chat.id, f'Hey {to_mention_name}!\nKirimkan `.acc {captcha}` di private chat saya jika anda setuju untuk melakukan bet GCoin dengan {from_mention_name}.\nBet akan dibatalkan dalam 1 menit jika tidak dijawab.')
+        await bot.listen(to_, filters=pyrogram.filters.regex(f'.acc {captcha}'), timeout=60)
         await x.delete()
         await asyncio.sleep(3)
         to_nums = int(random.randint(0, 36))
