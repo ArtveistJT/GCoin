@@ -93,7 +93,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.flip nominal` - flip GCoin milik anda (judi).\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.\n`.bet @tag nominal` - mempertaruhkan GCoin yang sama dan yang menang akan mendapatkan 90 persen dari kedua GCoin yang ditambahkan (user vs user).\n`.spin code` - menerima tawaran bet.'
     await bot.send_message(update.chat.id, list_commands)
 
 
@@ -105,6 +105,12 @@ async def gcoin(bot, update):
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('flip', '.'))
 async def flip(bot, update):
+    admins = await db.get_admins()
+    if admins:
+        if not update.from_user.id in admins:
+            return
+        else:
+            pass
     if not await db.is_user_exist(update.from_user.id):
         return await bot.send_message(update.chat.id, 'Anda tidak dapat melakukan flip GCoin, pastikan anda memiliki setidaknya 1 GCoin.\ngunakan .wallet untuk mengecek total GCoin anda.')
     name, mention_name = await checking_user_name(update)
@@ -170,6 +176,82 @@ async def buttons(bot, update):
         pass
     await update.message.delete()
 
+@xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('bet', '.'))
+async def bet(bot, update):
+    from_name, from_mention_name = await checking_user_name(update)
+    if not await check_if_cmd_valid(update):
+        return await bot.send_message(update.chat.id, 'Contoh: `.bet @tag 10`')
+    to_, to_name, to_mention_name = await get_user_id_from_tag(update)
+    try:
+        cmd, tag, ammount = update.text.split(' ')
+    except:
+        return await bot.send_message(update.chat.id, 'Contoh: `.bet @tag 10`')
+    if not to_:
+        if to_name:
+            return await bot.send_message(update.chat.id, to_name)
+        else:
+            return await bot.send_message(update.chat.id, 'Contoh: `.bet @tag 10`')
+    from_ = update.from_user.id
+    if to_ == from_:
+        return await bot.send_message(update.chat.id, 'Tidak dapat melakukan bet GCoin kepada diri sendiri.')
+    if await db.is_user_exist(from_) and await db.is_user_exist(to_):
+        from_data = await db.get_user(from_)
+        to_data = await db.get_user(to_)
+        if from_data['coin'] == '0':
+            return await bot.send_message(update.chat.id, 'Anda tidak dapat melakukan bet GCoin, pastikan anda memiliki setidaknya 1 GCoin.\ngunakan .wallet untuk mengecek total GCoin anda.')
+        if int(from_data['coin']) < int(ammount):
+            return await bot.send_message(update.chat.id, f'GCoin anda saat ini tidak mencukupi untuk melakukan bet sebesar {ammount}.')
+        if to_data['coin'] == '0':
+            return await bot.send_message(update.chat.id, 'User yang anda tuju tidak dapat melakukan bet GCoin karena GCoin miliknya tidak mencukupi.')
+        if int(to_data['coin']) < int(ammount):
+            return await bot.send_message(update.chat.id, 'User yang anda tuju tidak dapat melakukan bet GCoin karena GCoin miliknya tidak mencukupi.')
+        if int(ammount) == 0:
+            return await bot.send_message(update.chat.id, f'Bet GCoin 0 tidak di izinkan.')
+        captcha = str(uuid.uuid4()).split('-')[0]
+        x = await bot.send_message(update.chat.id, f'Hey {to_mention_name}!\nKirimkan `.spin {captcha}` di private chat saya jika anda setuju untuk melakukan bet GCoin dengan {from_mention_name}.\nBet akan dibatalkan dalam 1 menit jika tidak dijawab.')
+        await bot.listen(to_, filters=pyrogram.filters.regex(f'.spin {captcha}'), timeout=60)
+        await x.delete()
+        await asyncio.sleep(3)
+        to_nums = int(random.randint(0, 36))
+        from_nums = int(random.randint(0, 36))
+        to_nums_str = str(to_nums)
+        from_nums_str = str(from_nums)
+        await bot.send_message(update.chat.id, f'{from_mention_name} memutar roda dan mendapatkan {from_nums_str}\n\n{to_mention_name} memutar roda dan mendapatkan {to_nums_str}')
+        to_get_point = str(int((int(ammount)+int(ammount))*0.9))
+        await asyncio.sleep(1)
+        from_data = await db.get_user(from_)
+        to_data = await db.get_user(to_)
+        if int(from_data['coin']) < int(ammount):
+            return await bot.send_message(update.chat.id, f'GCoin milik {from_mention_name} saat ini tidak mencukupi untuk melakukan bet sebesar {ammount}.')
+        if int(to_data['coin']) < int(ammount):
+            return await bot.send_message(update.chat.id, f'GCoin milik {to_mention_name} saat ini tidak mencukupi untuk melakukan bet sebesar {ammount}.')
+        await db.decrease_coin(from_, ammount)
+        await db.decrease_coin(to_, ammount)
+        if to_nums == 0:
+            gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
+            await db.increase_coin(to_, to_get_point)
+            return await bot.send_message(update.chat.id, f'Selamat kepada user {to_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
+        if from_nums == 0:
+            gcurr = int(from_data['coin'])+int(to_get_point)-int(ammount)
+            await db.increase_coin(from_, to_get_point)
+            return await bot.send_message(update.chat.id, f'Selamat kepada user {from_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
+        if to_nums > from_nums:
+            gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
+            await db.increase_coin(to_, to_get_point)
+            return await bot.send_message(update.chat.id, f'Selamat kepada user {to_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
+        if from_nums > to_nums:
+            gcurr = int(from_data['coin'])+int(to_get_point)-int(ammount)
+            await db.increase_coin(from_, to_get_point)
+            return await bot.send_message(update.chat.id, f'Selamat kepada user {from_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
+        if from_nums == to_nums:
+            await db.increase_coin(from_, ammount)
+            await db.increase_coin(to_, ammount)
+            return await bot.send_message(update.chat.id, f'Hasilnya seri. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')
+        await db.increase_coin(from_, ammount)
+        await db.increase_coin(to_, ammount)
+        return await bot.send_message(update.chat.id, f'Terjadi hasil yang tidak diduga. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')  
+    else:
+        await bot.send_message(update.chat.id, 'Di antara anda dan tujuan anda tidak memiliki cukup GCoin untuk melakukan bet GCoin.')
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('drop', '.'))
 async def drop(bot, update):
