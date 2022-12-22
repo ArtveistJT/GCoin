@@ -3,6 +3,7 @@ import motor.motor_asyncio, config, collections
 up = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['users']
 up_admin = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['admins']
 drop = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['drop']
+mutasi = motor.motor_asyncio.AsyncIOMotorClient(config.Config.DB_URI)['GCoin']['history']
 
 def int_checker(integer_):
     if integer_ > 0:
@@ -11,6 +12,23 @@ def int_checker(integer_):
         return 0
     else:
         return 0
+
+async def add_user_history(id, history):
+    await mutasi.insert_one({'id': str(id), 'history': [history]})
+
+async def is_user_history_exist(id):
+    return True if await mutasi.find_one({'id': str(id)}) else False
+
+async def get_user_history(id):
+    return await mutasi.find_one({'id': str(id)})
+
+async def update_user_history(id, history):
+    data = (await get_user_history(id))['history']
+    data.append(history)
+    await mutasi.update_one({'id': str(id)}, {'$set': {'history': data}})
+
+async def change_user_history(id, history):
+    await mutasi.update_one({'id': str(id)}, {'$set': {'history': history}})
 
 async def add_drop(id, name, ammount, captcha):
     await drop.insert_one({'x': 'x', 'id': str(id), 'name': name, 'ammount': ammount, 'captcha': captcha})
