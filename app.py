@@ -1,4 +1,5 @@
-import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen
+import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen, pytz, time
+from datetime import datetime
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps
 
@@ -101,6 +102,46 @@ async def _help(bot, update):
 async def gcoin(bot, update):
     text = 'GCoin merupakan mata uang yang dibuat oleh @GrowtopiaIndonesia. GCoin bisa digunakan seperti mata uang pada umumnya (untuk berbelanja, transaksi, dan lain lain). GCoin bisa didapatkan dengan cara deposit dengan @PiuStore (tentu saja bisa withdraw, namun ada fee 1k). 1 GCoin = Rp 1.'
     await bot.send_message(update.chat.id, text)
+
+
+@xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('history', '.'))
+async def history(bot, update):
+    text = f'History GCoin {update.from_user.mention}\n'
+    if await db.is_user_history_exist(update.from_user.id):
+        data = await db.get_user_history(update.from_user.id)
+        history = data['history']
+        not_changed_history = data['history']
+        x = 1
+        stop = None
+        date_cur = int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))
+        history[:] = [d for d in history if date_cur < int(d.get('date'))+604800]
+        if not history:
+            return await bot.send_message(update.chat.id, f'History GCoin {update.from_user.mention}\n\nTidak ada.')
+        for i in history:
+            unixToDatetime = datetime.fromtimestamp(int(i['date'])) # Unix Time
+            if i['transaction'] == 'bet':
+                if i['status'] == 'win':
+                    text+=f"\n{x}. {unixToDatetime} Bet {i['bet-gcoin']} | Menang {i['get-gcoin']}"
+                elif i['status'] == 'lost':
+                    text+=f"\n{x}. {unixToDatetime} Bet {i['bet-gcoin']} | Kalah"
+            if i['transaction'] == 'depo':
+                text+=f"\n{x}. {unixToDatetime} Deposit {i['gcoin']}"
+            if i['transaction'] == 'wd':
+                text+=f"\n{x}. {unixToDatetime} Withdraw {i['gcoin']}"
+            if i['transaction'] == 'drop':
+                text+=f"\n{x}. {unixToDatetime} Drop {i['gcoin']}"
+            if i['transaction'] == 'claim':
+                text+=f"\n{x}. {unixToDatetime} Claim {i['gcoin']}"
+            if i['transaction'] == 'get-transfer':
+                text+=f"\n{x}. {unixToDatetime} Menerima {i['gcoin']} dari {i['user']}"
+            if i['transaction'] == 'give-transfer':
+                text+=f"\n{x}. {unixToDatetime} Mengirim {i['gcoin']} ke {i['user']}"
+            x+=1
+        if not_changed_history != history:
+            await db.change_user_history(update.from_user.id, history)
+    else:
+        return await bot.send_message(update.chat.id, f'History GCoin {update.from_user.mention}\n\nTidak ada.')
+    await bot.send_message(update.chat.id, text[:4090])
 
 
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('flip', '.'))
@@ -242,6 +283,10 @@ async def addcoin(bot, update):
     else:
         await db.add_user(id, name, '0')
         coins = await db.increase_coin(id, ammount)
+    if await db.is_user_history_exist(id):
+        await db.update_user_history(id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'depo', 'gcoin': str(ammount)})
+    else:
+        await db.add_user_history(id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'depo', 'gcoin': str(ammount)})
     await bot.send_message(update.chat.id, f'{mention_name} baru saja deposit sebesar {ammount} GCoin\n\nGCoin saat ini: {coins} GCoin.')
 
 
@@ -275,6 +320,10 @@ async def delcoin(bot, update):
             return await bot.send_message(update.chat.id, f'Saat ini user {mention_name} tidak memiliki GCoin, pastikan anda telah menambahkan GCoin kepada user {name}.')
         else:
             coins = await db.decrease_coin(id, ammount)
+    if await db.is_user_history_exist(id):
+        await db.update_user_history(id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'wd', 'gcoin': str(ammount)})
+    else:
+        await db.add_user_history(id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'wd', 'gcoin': str(ammount)})
     await bot.send_message(update.chat.id, f'{mention_name} baru saja withdraw sebesar {ammount} GCoin\n\nGCoin saat ini: {coins} GCoin.')
 
 
@@ -311,10 +360,26 @@ async def transfer(bot, update):
                 coins = from_data['coin']
                 await db.increase_coin(to_, coins)
                 await db.decrease_coin(from_, coins)
+                if await db.is_user_history_exist(to_):
+                    await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'get-transfer', 'gcoin': str(coins), 'user': from_name})
+                else:
+                    await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'get-transfer', 'gcoin': str(coins), 'user': from_name})
+                if await db.is_user_history_exist(from_):
+                    await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'give-transfer', 'gcoin': str(coins), 'user': to_name})
+                else:
+                    await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'give-transfer', 'gcoin': str(coins), 'user': to_name})
                 await bot.send_message(update.chat.id, f'Semua GCoin {from_mention_name} telah ditransfer kepada {to_mention_name}')
             else:
                 await db.increase_coin(to_, ammount)
                 await db.decrease_coin(from_, ammount)
+                if await db.is_user_history_exist(to_):
+                    await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'get-transfer', 'gcoin': str(ammount), 'user': from_name})
+                else:
+                    await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'get-transfer', 'gcoin': str(ammount), 'user': from_name})
+                if await db.is_user_history_exist(from_):
+                    await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'give-transfer', 'gcoin': str(ammount), 'user': to_name})
+                else:
+                    await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'give-transfer', 'gcoin': str(ammount), 'user': to_name})
                 await bot.send_message(update.chat.id, f'GCoin {from_mention_name} sebanyak {ammount} telah ditransfer kepada {to_mention_name}')
     else:
         await bot.send_message(update.chat.id, 'Anda tidak dapat melakukan transfer GCoin, pastikan anda memiliki setidaknya 1 GCoin.\ngunakan .wallet untuk mengecek total GCoin anda.')
