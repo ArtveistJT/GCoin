@@ -1,4 +1,5 @@
-import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen
+import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen, pytz, time
+from datetime import datetime
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps
 
@@ -140,18 +141,50 @@ async def bet(bot, update):
         if to_nums == 0:
             gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(to_, to_get_point)
+            if await db.is_user_history_exist(to_):
+                await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            if await db.is_user_history_exist(from_):
+                await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
             return await bot.send_message(update.chat.id, f'Selamat kepada user {to_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
         if from_nums == 0:
             gcurr = int(from_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(from_, to_get_point)
+            if await db.is_user_history_exist(from_):
+                await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            if await db.is_user_history_exist(to_):
+                await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
             return await bot.send_message(update.chat.id, f'Selamat kepada user {from_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
         if to_nums > from_nums:
             gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(to_, to_get_point)
+            if await db.is_user_history_exist(to_):
+                await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            if await db.is_user_history_exist(from_):
+                await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
             return await bot.send_message(update.chat.id, f'Selamat kepada user {to_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
         if from_nums > to_nums:
             gcurr = int(from_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(from_, to_get_point)
+            if await db.is_user_history_exist(from_):
+                await db.update_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(from_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'win', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            if await db.is_user_history_exist(to_):
+                await db.update_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
+            else:
+                await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
             return await bot.send_message(update.chat.id, f'Selamat kepada user {from_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
         if from_nums == to_nums:
             await db.increase_coin(from_, ammount)
