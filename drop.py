@@ -1,4 +1,5 @@
-import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen
+import pyrogram, config, db, random, uuid, os, asyncio, pyromod.listen, pytz, time
+from datetime import datetime
 from PIL import Image
 from PIL import ImageFont, ImageDraw, ImageOps
 
@@ -122,6 +123,14 @@ async def drop(bot, update):
                 await db.add_user(x.from_user.id, to_name, angka)
             else:
                 await db.increase_coin(x.from_user.id, angka)
+            if await db.is_user_history_exist(x.from_user.id):
+                await db.update_user_history(x.from_user.id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'claim', 'gcoin': str(angka)})
+            else:
+                await db.add_user_history(x.from_user.id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'claim', 'gcoin': str(angka)})
+            if await db.is_user_history_exist(update.from_user.id):
+                await db.update_user_history(update.from_user.id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'drop', 'gcoin': str(angka)})
+            else:
+                await db.add_user_history(update.from_user.id, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'drop', 'gcoin': str(angka)})
             await bot.send_message(update.chat.id, f'Selamat kepada user {mention_name} karena telah mendapatkan drop GCoin sebesar {angka} dari {name}.')
         else:
             await db.increase_coin(update.from_user.id, angka)
