@@ -128,7 +128,7 @@ async def bet(bot, update):
         to_nums_str = str(to_nums)
         from_nums_str = str(from_nums)
         await bot.send_message(update.chat.id, f'{from_mention_name} memutar roda dan mendapatkan {from_nums_str}\n\n{to_mention_name} memutar roda dan mendapatkan {to_nums_str}')
-        to_get_point = str(int((int(ammount)+int(ammount))*0.9))
+        to_get_point = str(int((int(ammount)+int(ammount))*0.95))
         await asyncio.sleep(1)
         from_data = await db.get_user(from_)
         to_data = await db.get_user(to_)
