@@ -138,6 +138,10 @@ async def bet(bot, update):
             return await bot.send_message(update.chat.id, f'GCoin milik {to_mention_name} saat ini tidak mencukupi untuk melakukan bet sebesar {ammount}.')
         await db.decrease_coin(from_, ammount)
         await db.decrease_coin(to_, ammount)
+        if from_nums == to_nums:
+            await db.increase_coin(from_, ammount)
+            await db.increase_coin(to_, ammount)
+            return await bot.send_message(update.chat.id, f'Hasilnya seri. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')
         if to_nums == 0:
             gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(to_, to_get_point)
@@ -186,10 +190,6 @@ async def bet(bot, update):
             else:
                 await db.add_user_history(to_, {'date': str(int(time.mktime(time.strptime(datetime.now(pytz.timezone('Asia/Jakarta')).strftime('%Y:%m:%d %H:%M:%S'), '%Y:%m:%d %H:%M:%S')))), 'transaction': 'bet', 'status': 'lost', 'bet-gcoin': str(ammount), 'get-gcoin': str(to_get_point)})
             return await bot.send_message(update.chat.id, f'Selamat kepada user {from_mention_name} karena telah memenangkan bet GCoin! GCoin anda telah bertambah sebanyak {to_get_point} GCoin.\n\nGCoin saat ini: {gcurr} GCoin.')
-        if from_nums == to_nums:
-            await db.increase_coin(from_, ammount)
-            await db.increase_coin(to_, ammount)
-            return await bot.send_message(update.chat.id, f'Hasilnya seri. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')
         await db.increase_coin(from_, ammount)
         await db.increase_coin(to_, ammount)
         return await bot.send_message(update.chat.id, f'Terjadi hasil yang tidak diduga. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')  
