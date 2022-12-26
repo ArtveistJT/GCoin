@@ -96,17 +96,43 @@ def IsMultiple(bid, maxbid, fold):
         return False
 
 
+def time_covert(regex):
+    count = regex.groups(1)[0]
+    format_ = regex.groups(2)[1]
+    if format_ == 's':
+        return int(count), f'{count} detik'
+    elif format_ == 'm':
+        return int(count)*60, f'{count} menit'
+    elif format_ == 'h':
+        return int(count)*3600, f'{count} jam'
+    elif format_ == 'd':
+        return int(count)*86400, f'{count} hari'
+    else:
+        return None, None
+
+
 @xbot.on_message(pyrogram.filters.group & pyrogram.filters.command('lelang', '.'))
 async def lelang(bot, update):
+    admins = await db.get_admins()
+    if admins:
+        if not update.from_user.id in admins:
+            return
+        else:
+            pass
     name, mention_name = await checking_user_name(update)
-    akun, maxbid, fold  = update.text.split(' ', 1)[1].split(' | ')
+    akun, maxbid, fold, time_format  = update.text.split(' ', 1)[1].split(' | ')
     if maxbid.isdigit() and fold.isdigit():
+        regex = re.search(r'(\d+)(s|m|h|d)', time_format)
+        the_time, waktu = time_covert(regex)
+        if not the_time:
+            return print(the_time)
         users = []
         higher_bargainer = {}
-        await bot.send_message(update.chat.id, f'Dilelang sebuah {akun}!\n\nBid maksimal: {maxbid}\nLipatan: {fold}\nDimulai dari {maxbid}. Silakan menawar dengan cara `.bid {maxbid}` dan seterusnya sesuai dengan lipatan.\n\nTambahan: Jika tidak ditawar dalam 60 detik, maka lelang akan dibatalkan atau sang penawar tertinggi akan memenangkan lelang.`')
+        await bot.send_message(update.chat.id, f'Dilelang sebuah {akun}!\n\nBid maksimal: {maxbid}\nLipatan: {fold}\nDimulai dari {maxbid}. Silakan menawar dengan cara `.bid {maxbid}` dan seterusnya sesuai dengan lipatan.\n\nTambahan: Jika tidak ditawar dalam {waktu}, maka lelang akan dibatalkan atau sang penawar tertinggi akan memenangkan lelang.`')
         for _ in range(10000):
             try:
-                x = await bot.listen(update.chat.id, filters=pyrogram.filters.regex(r'\.bid \d+'), timeout=60)
+                start = time.time()
+                x = await bot.listen(update.chat.id, filters=pyrogram.filters.regex(r'\.bid \d+'), timeout=the_time)
             except asyncio.exceptions.TimeoutError:
                 if higher_bargainer:
                     data = await db.get_user(higher_bargainer['user_id'])
@@ -131,6 +157,8 @@ async def lelang(bot, update):
                 if users:
                     if higher_bid == higher_bargainer['bid']:
                         await bot.send_message(update.chat.id, 'Tidak dapat memberikan penawaran yang sama dengan penawar tertinggi saat ini.')
+                        full_time = int(time.time() - start)
+                        the_time -= full_time
                         continue
                     for user in users:
                         if user['user_id'] == x.from_user.id:
@@ -162,6 +190,8 @@ async def lelang(bot, update):
                     for i in range(len(users)):
                         if users[i]['user_id'] == x.from_user.id:
                             users[i] = {'user_id': x.from_user.id, 'bid': higher_bid}
+            full_time = int(time.time() - start)
+            the_time -= full_time
 
             
 xbot.run()
