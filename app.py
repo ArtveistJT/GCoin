@@ -94,7 +94,7 @@ async def start(bot, update):
 
 @xbot.on_message((pyrogram.filters.group|pyrogram.filters.private) & pyrogram.filters.command('help', '.'))
 async def _help(bot, update):
-    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.\n`.bet @tag nominal` - mempertaruhkan GCoin yang sama dan yang menang akan mendapatkan 90 persen dari kedua GCoin yang ditambahkan (user vs user).\n`.acc code` - menerima tawaran bet.\n`.history` - mengecek riwayat anda.'
+    list_commands = 'List Commands:\n\n`.top` - menampilkan top 10 pemilik GCoin teratas.\n`.wallet` - menampilkan total GCoin yang dimiliki.\n`.transfer @tag nominal` - mentransfer GCoin milik anda kepada orang lain.\n`.gcoin` - pengertian gcoin.\n`.drop nominal` - men-drop GCoin anda untuk diclaim oleh user lain (giveaway).\n`.claim captcha` - meng-claim GCoin yang di drop.\n\nPS: ada kondisi tertentu untuk command drop, dimana kita tidak akan dapat melakukan command lain sebelum kita claim ataupun lewat 30 pesan (expired) di chat ini.\n`.bet @tag nominal` - mempertaruhkan GCoin yang sama dan yang menang akan mendapatkan GCoin hasil taruhan tersebut namun ada tax sebesar 2,5% (user vs user).\n`.acc code` - menerima tawaran bet.\n`.history` - mengecek riwayat anda.'
     await bot.send_message(update.chat.id, list_commands)
 
 
