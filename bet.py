@@ -141,7 +141,7 @@ async def bet(bot, update):
         if from_nums == to_nums:
             await db.increase_coin(from_, ammount)
             await db.increase_coin(to_, ammount)
-            return await bot.send_message(update.chat.id, f'Hasilnya seri. maka dari itu GCoin yang ditaruhkan telah dikembalikan.')
+            return await bot.send_message(update.chat.id, f'Hasilnya seri. maka dari itu GCoin yang dipertaruhkan telah dikembalikan.')
         if to_nums == 0:
             gcurr = int(to_data['coin'])+int(to_get_point)-int(ammount)
             await db.increase_coin(to_, to_get_point)
