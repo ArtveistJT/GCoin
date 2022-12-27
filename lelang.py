@@ -128,7 +128,7 @@ async def lelang(bot, update):
             return print(the_time)
         users = []
         higher_bargainer = {}
-        await bot.send_message(update.chat.id, f'Dilelang sebuah {akun}!\n\nBid maksimal: {maxbid}\nLipatan: {fold}\nDimulai dari {maxbid}. Silakan menawar dengan cara `.bid {maxbid}` dan seterusnya sesuai dengan lipatan.\n\nTambahan: Jika tidak ditawar dalam {waktu}, maka lelang akan dibatalkan atau sang penawar tertinggi akan memenangkan lelang.`')
+        await bot.send_message(update.chat.id, f'Dilelang sebuah {akun}!\n\nStart bid: {maxbid}\nKelipatan: {fold}\nDimulai dari {maxbid}. Silakan menawar dengan cara `.bid {maxbid}` dan seterusnya sesuai dengan kelipatan.\n\nTambahan: Jika tidak ditawar dalam {waktu}, maka lelang akan dibatalkan atau sang penawar tertinggi akan memenangkan lelang.`')
         for _ in range(10000):
             try:
                 start = time.time()
